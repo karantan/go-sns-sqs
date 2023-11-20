@@ -1,0 +1,50 @@
+service: flow
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: v1
+
+functions:
+  calculate:
+    handler: bin/calculate
+    events:
+      - sns:
+          arn: !Ref DispatchTopic
+          topicName: dispatch
+    # https://www.serverless.com/framework/docs/providers/aws/guide/functions#destinations
+    destinations:
+      onSuccess:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - SuccessQueue
+            - Arn
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - FailQueue
+            - Arn
+
+resources:
+  Resources:
+    DispatchTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: dispatch
+    SuccessQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: success
+    FailQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: fail
+
+package:
+  patterns:
+    - '!./**'
+    - ./bin/**
